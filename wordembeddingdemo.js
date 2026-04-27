@@ -845,9 +845,9 @@ class Demo {
         document.querySelector("#plotly-magnify > div > div > svg:nth-child(1) > g.cartesianlayer").style.visibility = this.hideMagnitudePlot ? 'hidden' : '';     
     }
 
-    // remove all non alphanumeric characters from words (#56)
+    // lowercase and remove non alphanumeric characters from words (#56)
     cleanWordInput(word) {
-        word = word.replace(/\W/g, '');
+        word = word.trim().toLowerCase().replace(/\W/g, '');
         return word;
     }
 
@@ -860,7 +860,6 @@ class Demo {
         let addedWords = [];
         let removedWords = [];
         let absentWords = [];
-        let finalWordsToAdd = new Set(); // handle duplicate additions for word selection / display at the end of this function
         // split user input across periods, spaces, commas or semicolons
         const words = document.getElementById("modify-word-input").value
                               .split(/[ ;,.]+/); 
@@ -878,13 +877,11 @@ class Demo {
             if (this.scatterWords.includes(word)) {  // remove word
                 this.scatterWords = this.scatterWords.filter(item => item !== word);
                 removedWords.push(word);
-                if (finalWordsToAdd.has(word)) finalWordsToAdd.delete(word);
                 wordModified = true;
             } else { // add word if in vocab
                 if (this.vocab.has(word)) {
                     this.scatterWords.push(word);
                     addedWords.push(word);
-                    finalWordsToAdd.add(word);
                     wordModified = true;
                 } else { // word not found
                     absentWords.push(word);
@@ -893,18 +890,27 @@ class Demo {
             }
         });
 
-        // make first added word active
-        // if no words have been added, deactivate any currently active word
-        if (finalWordsToAdd.size > 0){
-            for (var word of finalWordsToAdd) // go up to last word of set
-            this.selectedWord = word; // select last word
-            this.formatMagnitudePlot("similarity");
-            this.highlightVectorAxis(true);
-        }
-        else {
-            this.selectedWord = "";
+        // update selection on add/remove without entering similarity mode
+        if (wordModified) {
+            if (addedWords.length > 0) {
+                // keep red-highlighted feedback in scatter by selecting the latest added word
+                this.selectedWord = addedWords[addedWords.length - 1];
+            } else if (removedWords.length > 0) {
+                // remove-only, clears current active word selection
+                this.selectedWord = "";
+            }
             this.formatMagnitudePlot("default");
             this.highlightVectorAxis(false);
+            this.updateSimilarityLines(true, false);
+        } else {
+            // if there is NO VALID add/remove, keep current status quo
+            if (this.selectedWord) {
+                this.formatMagnitudePlot("similarity");
+                this.highlightVectorAxis(true);
+            } else {
+                this.formatMagnitudePlot("default");
+                this.highlightVectorAxis(false);
+            }
         }
 
         // generate message as per changes to words
@@ -1032,59 +1038,128 @@ class Demo {
         }
     }
 
-    // handle user submitting feature words into form
+    // read one feature row(dimension)'s two word lists from textareas
+    getFeatureWordsInput(featureIdx) {
+        const selectedName = `feature${featureIdx}`;
+        let featureWordsPairInput = Array(2);
+        for (let j=0; j<2; j++) {
+            // split words across new lines
+            // convert to lowercase (#39)
+            featureWordsPairInput[j] =
+                document.querySelector(`.user-feature-words.${selectedName}.set${j}`).value.toLowerCase().split('\n');
+        }
+        return featureWordsPairInput;
+    }
+
+    // validate one feature row and write message on failure
+    validateFeatureInput(featureIdx, featureWordsPairInput) {
+        // ensure feature sets are the same length
+        if (featureWordsPairInput[0].length !== featureWordsPairInput[1].length) {
+            this.setFeatureInlineMessage(featureIdx, "Ensure feature word sets are same length");
+            return false;
+        }
+
+        // ensure all words in vocab
+        for (let j=0; j<2; j++) {
+            for (const word of featureWordsPairInput[j]) {
+                if (!this.vocab.has(word)) {
+                    this.setFeatureInlineMessage(featureIdx, `"${word}" not found`);
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    // save one validated feature row to model
+    saveFeatureInput(featureIdx, featureWordsPairInput) {
+        this.featureWordsPairs[featureIdx] = featureWordsPairInput;
+        const selectedName = `feature${featureIdx}`;
+        this.featureNames[featureIdx] =
+            this.formatFeatureName(document.querySelector(`.user-feature-name.${selectedName}`).value);
+    }
+
+    // sync scatter axis button labels with selected feature names
+    updateScatterButtonLabels() {
+        document.getElementById("scatter-button0").innerText = this.featureNames[this.idx0];
+        document.getElementById("scatter-button1").innerText = this.featureNames[this.idx1];
+    }
+
+    // handle one row submit: validate current row, then paired axis row if needed
+    submitFeature(featureIdx) {
+        if (!this.guardModelReady("Load an embedding source first.")) {
+            return;
+        }
+        document.getElementById("user-feature-message").innerText = "";
+        this.clearFeatureInlineMessages();
+
+        const featureWordsPairInput = this.getFeatureWordsInput(featureIdx);
+        if (!this.validateFeatureInput(featureIdx, featureWordsPairInput)) {
+            return;
+        }
+        this.saveFeatureInput(featureIdx, featureWordsPairInput);
+
+        const isAxisFeature = (featureIdx === this.idx0 || featureIdx === this.idx1);
+        if (isAxisFeature) {
+            // lightweight rule: if one axis row is submitted, validate the other axis row too (between X-axis and Z-axis)
+            const otherAxisIdx = (featureIdx === this.idx0) ? this.idx1 : this.idx0;
+            const otherFeatureWordsPairInput = this.getFeatureWordsInput(otherAxisIdx);
+            if (!this.validateFeatureInput(otherAxisIdx, otherFeatureWordsPairInput)) {
+                return;
+            }
+            this.saveFeatureInput(otherAxisIdx, otherFeatureWordsPairInput);
+            this.updateScatterButtonLabels();
+            this.plotScatter();
+        }
+    }
+
+    // validate and apply currently selected X/Z-axis dimensions
+    // used by axis dropdown changes and initial page loading
     processFeatureInput() {
         if (!this.guardModelReady("Load an embedding source first.")) {
             return;
         }
-        // console.log(`this.idx0 = ${this.idx0}, this.idx1 = ${this.idx1}`)
-        let selectedNames = [`feature${this.idx0}`, `feature${this.idx1}`]; //.user-feature-words.
-        // temporary input to be validated
-        let featureWordsPairsInput = [Array(2), Array(2)];
-        for (let i=0; i<2; i++) {
-            for (let j=0; j<2; j++) {
-                // split words across new lines
-                // convert to lowercase (#39)
-                featureWordsPairsInput[i][j] =
-                    document.querySelector(`.user-feature-words.${selectedNames[i]}.set${j}`).value.toLowerCase().split('\n');
+        document.getElementById("user-feature-message").innerText = "";
+        this.clearFeatureInlineMessages();
+
+        const axisIdxs = [this.idx0, this.idx1];
+        const featureInputs = new Map();
+        let hasError = false;
+
+        for (const featureIdx of axisIdxs) {
+            const featureWordsPairInput = this.getFeatureWordsInput(featureIdx);
+            featureInputs.set(featureIdx, featureWordsPairInput);
+            if (!this.validateFeatureInput(featureIdx, featureWordsPairInput)) {
+                hasError = true;
             }
         }
-
-        // simple user input validation
-        // ensure feature sets are the same length
-        for (let i=0; i<2; i++) {
-            if (featureWordsPairsInput[i][0].length !== featureWordsPairsInput[i][1].length) {
-                document.getElementById("user-feature-message").innerText =
-                    "Ensure feature word sets are same length";
-                return;
-            }
+        if (hasError) {
+            return;
         }
 
-        // ensure all words in vocab
-        for (let i=0; i<2; i++) {
-            for (let j=0; j<2; j++) {
-                for (const word of featureWordsPairsInput[i][j]) {
-                    if (!this.vocab.has(word)) {
-                        document.getElementById("user-feature-message").innerText =
-                            `"${word}" not found`;
-                        return;
-                    }
-                }
-            }
+        for (const featureIdx of axisIdxs) {
+            this.saveFeatureInput(featureIdx, featureInputs.get(featureIdx));
         }
-
-        // (shallow) copy feature words after validation
-        this.featureWordsPairs = featureWordsPairsInput;
-
-        // read feature names from inputs, adding bracket syntax
-        this.featureNames[0] = this.formatFeatureName(document.querySelector(`.user-feature-name.${selectedNames[0]}`).value); //.user-feature-name.feature${1}
-        this.featureNames[1] = this.formatFeatureName(document.querySelector(`.user-feature-name.${selectedNames[1]}`).value);
-
-        // write names to buttons
-        document.getElementById("scatter-button0").innerText = this.featureNames[0];
-        document.getElementById("scatter-button1").innerText = this.featureNames[1];
-
+        this.updateScatterButtonLabels();
         this.plotScatter();
+    }
+
+    // clear all semantic dimension row messages before revalidation
+    clearFeatureInlineMessages() {
+        document.querySelectorAll(".user-feature-inline-message")
+            .forEach(elem => elem.remove());
+    }
+
+    // attach an inline message next to a feature row's submit button
+    setFeatureInlineMessage(featureIdx, message) {
+        const summary = document.querySelector(`#feature-details${featureIdx} summary`);
+        if (!summary) {
+            return;
+        }
+        const msg = document.createElement("span");
+        msg.className = "user-feature-inline-message";
+        msg.innerText = message;
+        summary.appendChild(msg);
     }
 
     // populate other box if one box is filled (#28)

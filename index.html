@@ -114,7 +114,7 @@
 <!-- Custom user-defined semantic dimensions #29 -->
 <details id = "custom-details">
     <summary>Custom semantic dimensions</summary>
-    <form id="user-features-form" action="javascript:demo.processFeatureInput()" autocomplete="off">
+    <form id="user-features-form" onsubmit="return false;" autocomplete="off">
     
         <!-- feature option 0 -->
         <details id=feature-details0>
@@ -128,7 +128,7 @@
                         <option value="value1" selected>X - Axis</option>
                         <option value="value2">Z - Axis</option>
                     </select>
-                    <button class="button" id="feature-button0" type="submit">Submit</button>
+                    <button class="button" id="feature-button0" type="button" onclick="demo.submitFeature(0)">Submit</button>
             </summary>
                 
             <div class="user-feature-entry">
@@ -149,7 +149,7 @@
                         <option value="value1">X - Axis</option>
                         <option value="value2" selected>Z - Axis</option>
                     </select>
-                <button class="button" id="feature-button1" type="submit">Submit</button>
+                <button class="button" id="feature-button1" type="button" onclick="demo.submitFeature(1)">Submit</button>
             </summary>
             
             <div class="user-feature-entry">
@@ -170,7 +170,7 @@
                         <option value="value1">X - Axis</option>
                         <option value="value2">Z - Axis</option>
                     </select>
-                <button class="button" id="feature-button2" type="submit">Submit</button>
+                <button class="button" id="feature-button2" type="button" onclick="demo.submitFeature(2)">Submit</button>
             </summary>
             
             <div class="user-feature-entry">
@@ -191,7 +191,7 @@
                         <option value="value1">X - Axis</option>
                         <option value="value2">Z - Axis</option>
                     </select>
-                <button class="button" id="feature-button3" type="submit">Submit</button>
+                <button class="button" id="feature-button3" type="button" onclick="demo.submitFeature(3)">Submit</button>
             </summary>
             
             <div class="user-feature-entry">
@@ -212,7 +212,7 @@
                         <option value="value1">X - Axis</option>
                         <option value="value2">Z - Axis</option>
                     </select>
-                <button class="button" id="feature-button4" type="submit">Submit</button>
+                <button class="button" id="feature-button4" type="button" onclick="demo.submitFeature(4)">Submit</button>
             </summary>
             
             <div class="user-feature-entry">
@@ -233,7 +233,7 @@
                         <option value="value1">X - Axis</option>
                         <option value="value2">Z - Axis</option>
                     </select>
-                <button class="button" id="feature-button5" type="submit">Submit</button>
+                <button class="button" id="feature-button5" type="button" onclick="demo.submitFeature(5)">Submit</button>
             </summary>
             
             <div class="user-feature-entry">
@@ -254,7 +254,7 @@
                         <option value="value1">X - Axis</option>
                         <option value="value2">Z - Axis</option>
                     </select>
-                <button class="button" id="feature-button6" type="submit">Submit</button>
+                <button class="button" id="feature-button6" type="button" onclick="demo.submitFeature(6)">Submit</button>
             </summary>
             
             <div class="user-feature-entry">
@@ -275,7 +275,7 @@
                         <option value="value1">X - Axis</option>
                         <option value="value2">Z - Axis</option>
                     </select>
-                <button class="button" id="feature-button7" type="submit">Submit</button>
+                <button class="button" id="feature-button7" type="button" onclick="demo.submitFeature(7)">Submit</button>
             </summary>
             
             <div class="user-feature-entry">
@@ -296,7 +296,7 @@
                         <option value="value1">X - Axis</option>
                         <option value="value2">Z - Axis</option>
                     </select>
-                <button class="button" id="feature-button8" type="submit">Submit</button>
+                <button class="button" id="feature-button8" type="button" onclick="demo.submitFeature(8)">Submit</button>
             </summary>
             
             <div class="user-feature-entry">
